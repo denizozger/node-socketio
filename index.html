@@ -1,0 +1,39 @@
+<html>
+  <head>
+    <style>
+      body {
+        font-family: "Helvetica Neue", helvetica, arial;
+        padding: 15px;
+      }
+
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      ul li {
+        line-height: 1.4;
+      }
+    </style>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+	  var resourceId = location.search.substring(1);
+
+	  var socket = io.connect('http://localhost/?resourceId=' + resourceId);
+
+	  socket.on('data', function (data) {
+	    var li = document.createElement('li');
+        li.innerHTML = JSON.stringify(data);
+        document.querySelector('#events').appendChild(li);
+	  });
+	</script>
+
+	</head>
+
+	<body>
+	  <h1>Node Websocket Server</h1>
+	  <ul id='events'></ul>
+	</body>
+</html>

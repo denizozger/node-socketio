@@ -1,0 +1,24 @@
+{
+  "name": "node-socketio",
+  "subdomain": "node-socketio",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/denizozger/node-socketio.git"
+  },
+  "dependencies": {
+    "socket.io": "0.9.x",
+    "express": "3.x",
+    "underscore": "1.5.x",
+    "request": "2.27.x",
+    "async": "0.2.x"
+  },
+  "engines": {
+    "node": "0.10.x",
+    "npm": "1.2.x"
+  },
+  "scripts": {
+    "start": "node app.js"
+  }
+}
+
