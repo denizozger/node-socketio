@@ -20,8 +20,15 @@
 	<script src="/socket.io/socket.io.js"></script>
 	<script>
 	  var resourceId = location.search.substring(1);
+    var locationStr = location + '';
 
-	  var socket = io.connect('http://localhost/?resourceId=' + resourceId);
+    var host = 'http://node-socketio.herokuapp.com/';
+
+    if (locationStr.indexOf('localhost') !== -1) {
+      host = 'http://localhost:5000/';
+    }
+
+	  var socket = io.connect(host + '?resourceId=' + resourceId);
 
 	  socket.on('data', function (data) {
 	    var li = document.createElement('li');
