@@ -20,7 +20,7 @@ io.configure('production', function(){
 	  , 'xhr-polling'
 	  , 'jsonp-polling'
 	]);
-  // io.set('origins', 'http://example.com:*');
+  io.set('origins', '*');
 });
 
 io.configure('development', function(){
@@ -54,10 +54,16 @@ const nodeFetcherAuthorizationHeaderKey = 'bm9kZS13ZWJzb2NrZXQ=';
 var resourceData = {};
 var resourceObservers = {};
 
+app.all('*', function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  next();
+ });
+
 /**
  * Public Endpoints
  */
-app.get('/', function (req, res) {
+app.get('/', function (req, res, next) {
   res.sendfile(__dirname + '/index.html');
 });
 
@@ -65,7 +71,7 @@ io.sockets.on('connection', function (webSocketClient) {
   handleNewClientConnection(webSocketClient); 
 });
 
-app.post('/broadcast/?*', function (req, res) {
+app.post('/broadcast/?*', function (req, res, next) {
 
   var resourceId = req.params[0];
   var newResourceData = req.body.newResourceData;
