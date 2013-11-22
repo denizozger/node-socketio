@@ -1,4 +1,5 @@
-var app = require('express')()
+var express = require('express')
+  , app = express()
   , server = require('http').createServer(app)
   , io = require('socket.io').listen(server)
   , request = require('request')
@@ -27,7 +28,14 @@ io.configure('development', function(){
   io.set('origins', 'http://localhost:*');
 });
 
-server.listen(80);
+app.use(express.json());
+app.use(express.urlencoded());
+
+const port = process.env.PORT || 80
+
+server.listen(port, function() {
+  console.log('Server listening on %s', port);
+});
 
 // Infrastructure and security settings
 const fetcherAddress = process.env.FETCHER_ADDRESS || 'http://node-fetcher.herokuapp.com/fetchlist/new/';
@@ -52,8 +60,12 @@ io.sockets.on('connection', function (webSocketClient) {
 });
 
 app.post('/broadcast/?*', function (req, res) {
+
+  var resourceId = req.params[0];
+  var newResourceData = req.body.newResourceData;
+
   // Security
-  if (!isThisHTTPRequestAllowedToPostData(req) || !isValidBroadcastRequest(req)) {
+  if (!isThisHTTPRequestAllowedToPostData(req) || !isValidBroadcastRequest(resourceId, newResourceData)) {
     res.writeHead(403, {
       'Content-Type': 'text/plain'
     }); 
@@ -61,9 +73,6 @@ app.post('/broadcast/?*', function (req, res) {
     res.end();
     return;
   }
-
-  var resourceId = req.params[0].substring(0, req.params[0].length - 1);
-  var newResourceData = req.query['newResourceData'];
 
   storeAndBroadcastNewResourceData(resourceId, newResourceData);
 
@@ -233,27 +242,19 @@ function isValidConnection(resourceId) {
   return true;
 }
 
-function isValidBroadcastRequest(req) {
+function isValidBroadcastRequest(resourceId, newResourceData) {
 	try {
-		var resourceId = req.params[0].substring(0, req.params[0].length - 1);
-	  	var newResourceData = req.query['newResourceData'];	
+		JSON.parse(newResourceData);
+	} catch (ex) {
+		logger.warn('Received resource data is not valid: ' + newResourceData);
+		return false;
+	}
 
-	  	try {
-  			JSON.parse(newResourceData);
-	  	} catch (ex) {
-	  		logger.warn('Received resource data is not valid: ' + newResourceData);
-	  		return false;
-	  	}
-  	} catch (e) {
-  		logger.warn('Received resource id is not valid');
-  		return false;
-  	}
+	if (!resourceId) {
+		logger.warn('Corrupt resource id');
+	}
 
-  	if (!resourceId) {
-  		logger.warn('Corrupt resource id');
-  	}
-
-  	return true;
+	return true;
 }
 
 function consoleLogNewConnection(webSocketClient) {
