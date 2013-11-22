@@ -20,12 +20,12 @@ io.configure('production', function(){
 	  , 'xhr-polling'
 	  , 'jsonp-polling'
 	]);
-  io.set('origins', 'http://node-socketio.herokuapp.com:*');
+  // io.set('origins', 'http://node-socketio.herokuapp.com:*');
 });
 
 io.configure('development', function(){
   io.set('transports', ['websocket']);
-  io.set('origins', 'http://localhost:*');
+  // io.set('origins', 'http://localhost:*');
 });
 
 app.use(express.json());
