@@ -1,19 +1,17 @@
-# Node.js Websocket Server [ ![Codeship Status for denizozger/node-websocket](https://www.codeship.io/projects/f23cd630-2d5e-0131-ef60-2e2c57662156/status?branch=master)](https://www.codeship.io/projects/9341)
+# Node.js Socket.io Server 
 
 This Node application perioducally receives JSON data from another web application, and serves it to clients connected to it.
 
-Uses the [einaros/ws](http://einaros.github.io/ws/) WebSockets implementation, and is built on [Heroku's template](https://github.com/heroku-examples/node-ws-test).
-
-# See it in action
-
-Go to [http://node-websocket-server.herokuapp.com/?matchesfeed/8/matchcentre](http://node-websocket-server.herokuapp.com/?matchesfeed/8/matchcentre). 
+It is built on [node-websocket](https://github.com/denizozger/node-websocket), and had it use [socket.io](http://socket.io/).
 
 # Running Locally
 
 ``` bash
 npm install
-foreman start
+sudo PORT=5000 NODE_ENV=development node app.js
 ```
+
+Go to [localhost/?matchesfeed/8/matchcentre](localhost/?matchesfeed/8/matchcentre)
 
 ## How it works
 
@@ -38,7 +36,7 @@ Go to [localhost:5000/?some-key](localhost:5000/?some-key) to see the most recen
 If you setup the other three projects, you should start node-fetcher as:
 
 ``` bash
-PORT=5000 FETCHER_ADDRESS='http://localhost:4000/fetchlist/new/' foreman start
+sudo PORT=5000 FETCHER_ADDRESS='http://localhost:4000/fetchlist/new/' NODE_ENV=development node app.js
 ```
 
 # Running on Heroku
