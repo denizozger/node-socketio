@@ -20,7 +20,7 @@ io.configure('production', function(){
 	  , 'xhr-polling'
 	  , 'jsonp-polling'
 	]);
-  io.set('origins', '*');
+  io.set('origins', 'http://node-socketio.herokuapp.com:*');
 });
 
 io.configure('development', function(){
@@ -63,15 +63,15 @@ app.all('*', function(req, res, next) {
 /**
  * Public Endpoints
  */
-app.get('/', function (req, res, next) {
+app.get('/', function getIndex(req, res, next) {
   res.sendfile(__dirname + '/index.html');
 });
 
-io.sockets.on('connection', function (webSocketClient) {
+io.sockets.on('connection', function onWebSocketConnection (webSocketClient) {
   handleNewClientConnection(webSocketClient); 
 });
 
-app.post('/broadcast/?*', function (req, res, next) {
+app.post('/broadcast/?*', function broadcast (req, res, next) {
 
   var resourceId = req.params[0];
   var newResourceData = req.body.newResourceData;
