@@ -30,11 +30,17 @@ io.configure('development', function(){
 
 app.use(express.json());
 app.use(express.urlencoded());
+app.enable('trust proxy');
 
-const port = process.env.PORT || 80
+app.use(function (err, req, res, next) {
+  console.error(err.stack);
+  res.send(500, 'Internal server error');
+});
+
+const port = process.env.PORT || 5000
 
 server.listen(port, function() {
-  console.log('Server listening on %s', port);
+  logger.info('Server listening on', port);
 });
 
 // Infrastructure and security settings
