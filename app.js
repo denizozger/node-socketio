@@ -1,3 +1,8 @@
+require('nodetime').profile({
+    accountKey: '7724d01175fed4cb54a011b85769b7b58a15bf6d', 
+    appName: 'Node.js Application'
+  });
+
 var express = require('express')
   , app = express()
   , server = require('http').createServer(app)
@@ -20,14 +25,14 @@ io.configure('production', function(){
 	  , 'xhr-polling'
 	  , 'jsonp-polling'
 	]);
-  // io.set('origins', 'http://node-socketio.herokuapp.com:*');
+  io.set('origins', 'http://node-socketio.herokuapp.com:*');
 });
 
 io.configure('development', function(){
   io.set('transports', ['websocket']);
-  // io.set('origins', 'http://localhost:*');
 });
 
+app.use(express.static(__dirname + '/'));
 app.use(express.json());
 app.use(express.urlencoded());
 app.enable('trust proxy');
@@ -53,12 +58,6 @@ const nodeFetcherAuthorizationHeaderKey = 'bm9kZS13ZWJzb2NrZXQ=';
  */
 var resourceData = {};
 var resourceObservers = {};
-
-app.all('*', function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "X-Requested-With");
-  next();
- });
 
 /**
  * Public Endpoints
@@ -180,7 +179,7 @@ function sendResourceDataToObserver(webSocketClient, resourceData) {
  * Form data should contain resource data.
  */
 function storeAndBroadcastNewResourceData(resourceId, newResourceData) {
-  logger.info('Received resource details (' + newResourceData + ') for resource id (' + resourceId + ')');
+  logger.info('[Received] resource details (' + newResourceData + ') for resource id (' + resourceId + ')');
   
   // store new data
   resourceData[resourceId] = newResourceData;
@@ -204,9 +203,14 @@ function broadcastMessageToObserversWatchingThisResourceAsync(observersWatchingT
     function(err){
       logger.error('Cant broadcast resource data to watching observer:', err);  
     });
+
+    logger.info('[Sent] Client size: ', observersWatchingThisResource ? observersWatchingThisResource.length : 0);
   } else {
-    logger.warn('No observers watching this resource (' + observersWatchingThisResource + 
-      ') or no new resource data (' + newResourceData + ')');
+    if (! observersWatchingThisResource) {
+      logger.warn('No observers watching this resource');
+    } else {
+      logger.warn('No new resource data (' + newResourceData + ')');
+    }
   }
 }
 
