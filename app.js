@@ -1,8 +1,3 @@
-require('nodetime').profile({
-    accountKey: '7724d01175fed4cb54a011b85769b7b58a15bf6d', 
-    appName: 'Node.js Application'
-  });
-
 var express = require('express')
   , app = express()
   , server = require('http').createServer(app)
