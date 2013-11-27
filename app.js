@@ -268,7 +268,7 @@ function logResourceObservers() {
     if (debugMode) {
         for (var resourceId in resourceObservers) {
             if (resourceObservers.hasOwnProperty(resourceId)) {
-                logger.info(resourceObservers[resourceId].length) + ' observers are watching ' + resourceId );
+                logger.info(resourceObservers[resourceId].length + ' observers are watching ' + resourceId );
             }
         }
     }
