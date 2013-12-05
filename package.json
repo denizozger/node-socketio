@@ -1,5 +1,6 @@
 {
   "name": "node-socketio",
+  "author": "Deniz Ozger <denizozger@gmail.com>",
   "subdomain": "node-socketio",
   "version": "0.0.1",
   "repository": {
@@ -11,14 +12,15 @@
     "express": "3.x",
     "underscore": "1.5.x",
     "request": "2.27.x",
-    "async": "0.2.x"
+    "async": "0.2.x",
+    "zmq": "~2.5.1"
   },
   "engines": {
     "node": "0.10.x",
     "npm": "1.2.x"
   },
   "scripts": {
-    "start": "node app.js"
+    "start": "node --harmony server.js"
   }
 }
 
