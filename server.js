@@ -27,22 +27,18 @@ io.configure('production', function(){
     , 'xhr-polling'
     , 'jsonp-polling'
   ]);
-  // io.set('origins', 'http://node-socketio.herokuapp.com:*');
+  // io.set('origins', 'http://www.example.com:*');
 });
 
 io.configure('development', function(){
   io.set('transports', ['websocket']);
+  io.set('log level', 3);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 });
 
 app.use(express.static(__dirname + '/'));
 app.use(express.json());
 app.use(express.urlencoded());
 app.enable('trust proxy');
-
-app.use(function (err, req, res, next) {
-  console.error(err.stack);
-  res.send(500, 'Internal server error');
-});
 
 const port = process.env.PORT || 5000
 
@@ -53,9 +49,7 @@ server.listen(port, function() {
 /**
  * Infrastructure and security settings
  */
-const fetcherAddress = process.env.FETCHER_ADDRESS || 'http://node-fetcher.herokuapp.com/fetchlist/new/';
-const authorizationHeaderKey = 'bm9kZS1mZXRjaGVy';
-const nodeFetcherAuthorizationHeaderKey = 'bm9kZS13ZWJzb2NrZXQ=';
+const fetcherAddress = process.env.FETCHER_ADDRESS;
 const debugMode = process.env.NODE_ENV === 'development';
 
 /**
@@ -87,7 +81,6 @@ const resourceRequiredPublisher = zmq.socket('pub').bind('tcp://*:5432', functio
   if (err) {
     throw Error(err);
   }
-
   logger.info('Resource Required Publisher listening for subscribers...');
 });
 
@@ -101,7 +94,7 @@ resourceUpdatedSubscriber.on('message', function (data) {
 });
 
 function handleResourceDataReceived(resource) {
-  logger.info('Received resource data for resource id (' + resource.id + ')');
+  logger.debug('Received resource data for resource id (' + resource.id + ')');
 
   storeResourceData(resource);
   notifyObservers(resource.id);
@@ -153,15 +146,15 @@ function notifyObservers(resourceId) {
 
     async.forEach(currentResourceObservers, function(thisObserver){
 
-      if (thisObserver) {
-        if (!thisObserver.disconnected) {
-          sendResourceDataToObserver(thisObserver, resource);
-        } else {
-          // We need to find the index ourselves, see https://github.com/caolan/async/issues/144
-          var i = getTheIndexOfTheObserver(currentResourceObservers, thisObserver);
+      if (!thisObserver.disconnected) {
+        sendResourceDataToObserver(thisObserver, resource);
+      } else {
+        // We need to find the index ourselves, see https://github.com/caolan/async/issues/144
+        // Discussion: When a resource terminates, and all observers disconnect, 
+          // currentResourceObservers will still be full.
+        var i = getTheIndexOfTheObserver(currentResourceObservers, thisObserver);
 
-          unobserveResource(currentResourceObservers, resourceId, i);
-        }
+        unobserveResource(currentResourceObservers, resourceId, i);
       }
     },
     function(err){
