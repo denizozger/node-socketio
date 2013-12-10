@@ -32,7 +32,7 @@ io.configure('production', function(){
 
 io.configure('development', function(){
   io.set('transports', ['websocket']);
-  io.set('log level', 3);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
+  io.set('log level', 2);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 });
 
 app.use(express.static(__dirname + '/'));
