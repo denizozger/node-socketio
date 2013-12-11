@@ -6,9 +6,9 @@ const express = require('express'),
   io = require('socket.io').listen(server),
   request = require('request'),
   async = require('async'),
-  _ = require('underscore'),
   logger = io.log,
-  zmq = require('zmq');
+  zmq = require('zmq'),
+  stronglopp = require('strong-agent').profile();
 
 /**
  * Server setup
@@ -18,12 +18,12 @@ io.configure('production', function(){
   io.enable('browser client minification');  // send minified client
   io.enable('browser client etag');          // apply etag caching logic based on version number
   io.enable('browser client gzip');          // gzip the file
-  io.set('log level', 2);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
+  io.set('log level', 1);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 
   io.set('transports', [
     'websocket'
     , 'flashsocket'
-    , 'htmlfile'
+    , 'homlfile'
     , 'xhr-polling'
     , 'jsonp-polling'
   ]);
@@ -34,6 +34,9 @@ io.configure('development', function(){
   io.set('transports', ['websocket']);
   io.set('log level', 2);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 });
+
+// io.set('heartbeat timeout', 180); // default: 60
+// io.set('heartbeat interval', 60); // default: 25
 
 app.use(express.static(__dirname + '/'));
 app.use(express.json());
@@ -81,35 +84,36 @@ const resourceRequiredPublisher = zmq.socket('pub').bind('tcp://*:5432', functio
   if (err) {
     throw Error(err);
   }
-  logger.info('Resource Required Publisher listening for subscribers...');
+  logger.info('Resource Required Publisher listening for subscribers..');
 });
 
 const resourceUpdatedSubscriber = zmq.socket('sub').connect('tcp://localhost:5433');
 resourceUpdatedSubscriber.subscribe('');
 
 resourceUpdatedSubscriber.on('message', function (data) {
-  var resource = JSON.parse(data); 
-
-  handleResourceDataReceived(resource);
+  handleResourceDataReceived(data);
 });
 
-function handleResourceDataReceived(resource) {
+function handleResourceDataReceived(data) {
+  var resource = JSON.parse(data); 
+
   logger.debug('Received resource data for resource id (' + resource.id + ')');
 
   storeResourceData(resource);
   notifyObservers(resource.id);
-}
 
+  // resource.data = null;
+}
 
 /**
  * Implementation of public endpoints
  */
 
-var resourceData = {}; // key = resourceId, value = resource
+var resourceData = {}; // key = resourceId, value = resourceData
 var resourceObservers = {}; // key = resourceId, value = clientConnection[]
 
 function isValidConnection(clientConnection) {
-  var resourceId = clientConnection.handshake.query.resourceId;
+  var resourceId = getResourceId(clientConnection);
 
   if (!resourceId) {
     logger.warn('Bad resource id (' + resourceId + ') is requested, closing the socket connection');
@@ -124,7 +128,7 @@ function getResourceId(clientConnection) {
 }
 
 function storeResourceData(resource) {
-  resourceData[resource.id] = resource;
+  resourceData[resource.id] = resource.data;
 
   logAllResources();
 }
@@ -140,14 +144,14 @@ function observeResource(clientConnection, resourceId) {
 
 function notifyObservers(resourceId) {
   var currentResourceObservers = resourceObservers[resourceId];
-  var resource = resourceData[resourceId];
+  var data = resourceData[resourceId];
 
   if (currentResourceObservers) {
 
     async.forEach(currentResourceObservers, function(thisObserver){
 
       if (!thisObserver.disconnected) {
-        sendResourceDataToObserver(thisObserver, resource);
+        sendResourceDataToObserver(thisObserver, data);
       } else {
         // We need to find the index ourselves, see https://github.com/caolan/async/issues/144
         // Discussion: When a resource terminates, and all observers disconnect, 
@@ -161,11 +165,7 @@ function notifyObservers(resourceId) {
       logger.error('Cant broadcast resource data to watching observer:', err);  
     });        
   } else {
-    if (!currentResourceObservers) {
-      logger.warn('No observers watching this resource');
-    } else {
-      logger.warn('No new resource data (' + resource + ')');
-    }
+    logger.warn('No observers watching this resource');
   }
 }
 
@@ -185,7 +185,7 @@ function unobserveResource(observersWatchingThisResource, resourceId, indexOfThe
   if (observersWatchingThisResource.length === 0) { 
     removeResource(resourceId);
   } 
-
+  
   logRemovedObserver();
 }
 
@@ -193,11 +193,11 @@ function removeResource(resourceId) {
   logger.debug('Removing resource ( ' + resourceId + ') from memory');
 
   delete resourceObservers[resourceId];
-  delete resourceData[resourceId];   
+  delete resourceData[resourceId]; 
 }
 
-function sendResourceDataToObserver(clientConnection, resource) {
-  clientConnection.emit('data', resource);
+function sendResourceDataToObserver(clientConnection, resourceData) {
+  clientConnection.emit('data', resourceData);
 }
 
 function requestResource(resourceId) {
@@ -211,7 +211,7 @@ function requestResource(resourceId) {
  */
 
 function logNewObserver(clientConnection) {
-  logger.debug('Requested resource id:', clientConnection.handshake.query.resourceId);
+  logger.debug('Requested resource id:', getResourceId(clientConnection));
   logger.info('New connection. WebSocket connections size: ', io.rooms[''] ? io.rooms[''].length : 0);
 }
 
@@ -236,4 +236,20 @@ function logResourceObservers() {
     }
   }
 }
+
+function closeAllSockets() {
+  resourceRequiredPublisher.close();
+  resourceUpdatedSubscriber.close(); 
+}
+
+process.on('uncaughtException', function (err) {
+  logger.error('Uncaught Exception: ' + err.stack);    
+  closeAllSockets();
+  process.exit(1);
+}); 
+
+process.on('SIGINT', function() {
+  closeAllSockets
+  process.exit();
+});
 
