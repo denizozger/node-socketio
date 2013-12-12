@@ -12,7 +12,6 @@
     "express": "3.x",
     "underscore": "1.5.x",
     "request": "2.27.x",
-    "async": "0.2.x",
     "zmq": "~2.5.1",
     "strong-agent": "~0.2.19"
   },

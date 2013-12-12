@@ -5,10 +5,35 @@ const express = require('express'),
   server = require('http').createServer(app),
   io = require('socket.io').listen(server),
   request = require('request'),
-  async = require('async'),
   logger = io.log,
   zmq = require('zmq'),
-  stronglopp = require('strong-agent').profile();
+  stronglopp = require('strong-agent').profile(),
+  memwatch = require('memwatch');
+
+var storeHD;
+var storeDiff;
+var notifyHD;
+var notifyDiff;
+
+memwatch.on('leak', function(info) {
+
+  // if (storeDiff && notifyDiff && resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
+
+    // logger.error('STORE HD: ' + JSON.stringify(storeDiff, null, 2));
+    // logger.error('NOTIFY HD: ' + JSON.stringify(notifyDiff, null, 2));
+
+    logger.error(JSON.stringify(info, null, 2));
+
+    process.exit();
+  // } else {
+    // logger.error('Not there yet.. ' + resourceObservers['matchesfeed/1/matchcentre'].length + ' / 150');
+  // }
+
+});
+
+memwatch.on('stats', function(stats) {
+  logger.warn(stats);
+});
 
 /**
  * Server setup
@@ -32,7 +57,7 @@ io.configure('production', function(){
 
 io.configure('development', function(){
   io.set('transports', ['websocket']);
-  io.set('log level', 2);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
+  io.set('log level', 3);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 });
 
 // io.set('heartbeat timeout', 180); // default: 60
@@ -59,8 +84,8 @@ const debugMode = process.env.NODE_ENV === 'development';
  * Public Endpoints
  */
  
-io.sockets.on('connection', function (webSocketClient) {
-  handleClientConnected(webSocketClient);
+io.sockets.on('connection', function (socket) {
+  handleClientConnected(socket);
 });
 
 function handleClientConnected(clientConnection) {
@@ -69,7 +94,9 @@ function handleClientConnected(clientConnection) {
   }
 
   var resourceId = getResourceId(clientConnection);
-  observeResource(clientConnection, resourceId);
+  
+  clientConnection.join(resourceId);
+  logNewObserver(clientConnection, resourceId);
 
   var existingResourceData = resourceData.resourceId;
 
@@ -95,14 +122,29 @@ resourceUpdatedSubscriber.on('message', function (data) {
 });
 
 function handleResourceDataReceived(data) {
+  
   var resource = JSON.parse(data); 
 
   logger.debug('Received resource data for resource id (' + resource.id + ')');
 
+  // if (resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
+    // storeHD = new memwatch.HeapDiff();
+  // }
+
   storeResourceData(resource);
+  
+  // if (resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
+    // storeDiff = storeHD.end();
+    // notifyHD = new memwatch.HeapDiff();
+  // }
+
   notifyObservers(resource.id);
 
-  // resource.data = null;
+  // if (resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
+    // notifyDiff = notifyHD.end();
+  // }
+
+  // console.log(JSON.stringify(diff, null, 2));
 }
 
 /**
@@ -110,7 +152,6 @@ function handleResourceDataReceived(data) {
  */
 
 var resourceData = {}; // key = resourceId, value = resourceData
-var resourceObservers = {}; // key = resourceId, value = clientConnection[]
 
 function isValidConnection(clientConnection) {
   var resourceId = getResourceId(clientConnection);
@@ -133,67 +174,10 @@ function storeResourceData(resource) {
   logAllResources();
 }
 
-function observeResource(clientConnection, resourceId) {
-  var currentResourceObservers = resourceObservers[resourceId] || [];
-
-  currentResourceObservers.push(clientConnection);
-  resourceObservers[resourceId] = currentResourceObservers;
-
-  logNewObserver(clientConnection);
-}
-
 function notifyObservers(resourceId) {
-  var currentResourceObservers = resourceObservers[resourceId];
   var data = resourceData[resourceId];
 
-  if (currentResourceObservers) {
-
-    async.forEach(currentResourceObservers, function(thisObserver){
-
-      if (!thisObserver.disconnected) {
-        sendResourceDataToObserver(thisObserver, data);
-      } else {
-        // We need to find the index ourselves, see https://github.com/caolan/async/issues/144
-        // Discussion: When a resource terminates, and all observers disconnect, 
-          // currentResourceObservers will still be full.
-        var i = getTheIndexOfTheObserver(currentResourceObservers, thisObserver);
-
-        unobserveResource(currentResourceObservers, resourceId, i);
-      }
-    },
-    function(err){
-      logger.error('Cant broadcast resource data to watching observer:', err);  
-    });        
-  } else {
-    logger.warn('No observers watching this resource');
-  }
-}
-
-function getTheIndexOfTheObserver(observersWatchingThisResource, observerToFind) {
-  for (var i = 0; i < observersWatchingThisResource.length; i++) {
-    var observer = observersWatchingThisResource[i];
-
-    if (observer === observerToFind) {
-      return i;
-    }
-  }
-}
-
-function unobserveResource(observersWatchingThisResource, resourceId, indexOfTheObserver) {
-  observersWatchingThisResource.splice(indexOfTheObserver, 1);
-
-  if (observersWatchingThisResource.length === 0) { 
-    removeResource(resourceId);
-  } 
-  
-  logRemovedObserver();
-}
-
-function removeResource(resourceId) {
-  logger.debug('Removing resource ( ' + resourceId + ') from memory');
-
-  delete resourceObservers[resourceId];
-  delete resourceData[resourceId]; 
+  io.sockets.in(resourceId).emit('data', data);
 }
 
 function sendResourceDataToObserver(clientConnection, resourceData) {
@@ -210,31 +194,14 @@ function requestResource(resourceId) {
  * Logging
  */
 
-function logNewObserver(clientConnection) {
-  logger.debug('Requested resource id:', getResourceId(clientConnection));
-  logger.info('New connection. WebSocket connections size: ', io.rooms[''] ? io.rooms[''].length : 0);
+function logNewObserver(clientConnection, resourceId) {
+  logger.info('New connection for ' + resourceId + '. This resource\'s observers: ' + 
+    io.sockets.clients(resourceId).length + ', Total observers : ' + (io.rooms[''] ? io.rooms[''].length : 0));
 }
 
 function logAllResources() {
-  if (debugMode) {
-    logger.debug('Current resource data:');
-    logger.debug(JSON.stringify(resourceData, null, 4));
-  }
-}
-
-function logRemovedObserver() {
-  logger.info('Connection closed. WebSocket connections size: ', io.rooms[''] ? io.rooms[''].length : 0);
-  logResourceObservers();
-}
-
-function logResourceObservers() {
-  if (debugMode) {
-    for (var resourceId in resourceObservers) {
-      if (resourceObservers.hasOwnProperty(resourceId)) {
-        logger.info(resourceObservers[resourceId].length + ' observers are watching ' + resourceId );
-      }
-    }
-  }
+  logger.debug('Total resources in memory: ' + Object.keys(resourceData).length);
+  // logger.debug(JSON.stringify(resourceData, null, 4));
 }
 
 function closeAllSockets() {
@@ -243,7 +210,7 @@ function closeAllSockets() {
 }
 
 process.on('uncaughtException', function (err) {
-  logger.error('Uncaught Exception: ' + err.stack);    
+  logger.error('Caught exception: ' + err.stack);    
   closeAllSockets();
   process.exit(1);
 }); 
