@@ -7,43 +7,17 @@ const express = require('express'),
   request = require('request'),
   logger = io.log,
   zmq = require('zmq'),
-  stronglopp = require('strong-agent').profile(),
+  strongloop = require('strong-agent').profile(),
   memwatch = require('memwatch');
-
-var storeHD;
-var storeDiff;
-var notifyHD;
-var notifyDiff;
-
-memwatch.on('leak', function(info) {
-
-  // if (storeDiff && notifyDiff && resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
-
-    // logger.error('STORE HD: ' + JSON.stringify(storeDiff, null, 2));
-    // logger.error('NOTIFY HD: ' + JSON.stringify(notifyDiff, null, 2));
-
-    logger.error(JSON.stringify(info, null, 2));
-
-    process.exit();
-  // } else {
-    // logger.error('Not there yet.. ' + resourceObservers['matchesfeed/1/matchcentre'].length + ' / 150');
-  // }
-
-});
-
-memwatch.on('stats', function(stats) {
-  logger.warn(stats);
-});
 
 /**
  * Server setup
  */
-
 io.configure('production', function(){
-  io.enable('browser client minification');  // send minified client
-  io.enable('browser client etag');          // apply etag caching logic based on version number
-  io.enable('browser client gzip');          // gzip the file
-  io.set('log level', 1);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
+  io.enable('browser client minification'); // send minified client
+  io.enable('browser client etag'); // apply etag caching logic based on version number
+  io.enable('browser client gzip'); // gzip the file
+  io.set('log level', 1); // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 
   io.set('transports', [
     'websocket'
@@ -57,18 +31,15 @@ io.configure('production', function(){
 
 io.configure('development', function(){
   io.set('transports', ['websocket']);
-  io.set('log level', 3);                    // reduce logging. 0: error, 1: warn, 2: info, 3: debug
+  io.set('log level', 2); // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 });
-
-// io.set('heartbeat timeout', 180); // default: 60
-// io.set('heartbeat interval', 60); // default: 25
 
 app.use(express.static(__dirname + '/'));
 app.use(express.json());
 app.use(express.urlencoded());
 app.enable('trust proxy');
 
-const port = process.env.PORT || 5000
+const port = process.env.PORT || 5000;
 
 server.listen(port, function() {
   logger.info('Server ' + process.pid + ' listening on', port);
@@ -78,7 +49,8 @@ server.listen(port, function() {
  * Infrastructure and security settings
  */
 const fetcherAddress = process.env.FETCHER_ADDRESS;
-const debugMode = process.env.NODE_ENV === 'development';
+var resourceData = {}; // key = resourceId, value = resourceData
+var heapDiffBegin = {}; // to debug memory leaks in development
 
 /**
  * Public Endpoints
@@ -107,65 +79,39 @@ function handleClientConnected(clientConnection) {
   }
 }
 
-const resourceRequiredPublisher = zmq.socket('pub').bind('tcp://*:5432', function(err) {
-  if (err) {
-    throw Error(err);
-  }
-  logger.info('Resource Required Publisher listening for subscribers..');
-});
-
+// Publish resource data that we don't have in memory
+const resourceRequiredPublisher = zmq.socket('pub').bind('tcp://*:5432');
+// Receive new resource data
 const resourceUpdatedSubscriber = zmq.socket('sub').connect('tcp://localhost:5433');
 resourceUpdatedSubscriber.subscribe('');
 
 resourceUpdatedSubscriber.on('message', function (data) {
+  heapDiffBegin = new memwatch.HeapDiff();
+
   handleResourceDataReceived(data);
 });
 
 function handleResourceDataReceived(data) {
-  
   var resource = JSON.parse(data); 
-
   logger.debug('Received resource data for resource id (' + resource.id + ')');
 
-  // if (resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
-    // storeHD = new memwatch.HeapDiff();
-  // }
-
   storeResourceData(resource);
-  
-  // if (resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
-    // storeDiff = storeHD.end();
-    // notifyHD = new memwatch.HeapDiff();
-  // }
 
   notifyObservers(resource.id);
-
-  // if (resourceObservers['matchesfeed/1/matchcentre'].length === 150) {
-    // notifyDiff = notifyHD.end();
-  // }
-
-  // console.log(JSON.stringify(diff, null, 2));
 }
 
 /**
  * Implementation of public endpoints
  */
 
-var resourceData = {}; // key = resourceId, value = resourceData
-
-function isValidConnection(clientConnection) {
-  var resourceId = getResourceId(clientConnection);
-
-  if (!resourceId) {
-    logger.warn('Bad resource id (' + resourceId + ') is requested, closing the socket connection');
-    return false;
-  }
-
-  return true;
+function sendResourceDataToObserver(clientConnection, resourceData) {
+  clientConnection.emit('data', resourceData);
 }
 
-function getResourceId(clientConnection) {
-  return clientConnection.handshake.query.resourceId;
+function requestResource(resourceId) {
+  logger.debug('Requested resource (id: ' + resourceId + ') does not exist, sending a resource request');
+
+  resourceRequiredPublisher.send(JSON.stringify({id: resourceId}));
 }
 
 function storeResourceData(resource) {
@@ -180,15 +126,37 @@ function notifyObservers(resourceId) {
   io.sockets.in(resourceId).emit('data', data);
 }
 
-function sendResourceDataToObserver(clientConnection, resourceData) {
-  clientConnection.emit('data', resourceData);
+function getResourceId(clientConnection) {
+  return clientConnection.handshake.query.resourceId;
 }
 
-function requestResource(resourceId) {
-  logger.debug('Requested resource (id: ' + resourceId + ') does not exist, sending a resource request');
+function isValidConnection(clientConnection) {
+  var resourceId = getResourceId(clientConnection);
 
-  resourceRequiredPublisher.send(JSON.stringify({id: resourceId}));
+  if (!resourceId) {
+    logger.warn('Bad resource id (' + resourceId + ') is requested, closing the socket connection');
+    return false;
+  }
+
+  return true;
 }
+
+/**
+ * Monitoring / debugging
+ */
+ memwatch.on('leak', function(info) {
+  var heapDiff = heapDiffBegin.end();
+
+  logger.error('Memory Leak detected:');
+  logger.error(JSON.stringify(info, null, 2));
+  logger.error(JSON.stringify(heapDiff, null, 2));
+
+  process.exit();
+});
+
+memwatch.on('stats', function(stats) {
+  logger.warn('Garbage Collection stats: ' + stats);
+});
 
 /**
  * Logging
@@ -197,6 +165,8 @@ function requestResource(resourceId) {
 function logNewObserver(clientConnection, resourceId) {
   logger.info('New connection for ' + resourceId + '. This resource\'s observers: ' + 
     io.sockets.clients(resourceId).length + ', Total observers : ' + (io.rooms[''] ? io.rooms[''].length : 0));
+  logger.debug('This client is present in these rooms: ' + 
+    JSON.stringify(io.sockets.manager.roomClients[clientConnection.id], null, 4));
 }
 
 function logAllResources() {
@@ -216,7 +186,7 @@ process.on('uncaughtException', function (err) {
 }); 
 
 process.on('SIGINT', function() {
-  closeAllSockets
+  closeAllSockets();
   process.exit();
 });
 
