@@ -5,7 +5,7 @@ var log = require('npmlog');
 log.level = 'verbose';
 
 var sockets = [];
-var maxSockets = 150;
+var maxSockets = 5000;
 var connectionAttempts = 0;
 
 function connectToWebSocket() {
@@ -55,7 +55,7 @@ function connectToWebSocket() {
   sockets.push(socket);
 
 	if (connectionAttempts < maxSockets) {
-    setTimeout(connectToWebSocket, 1000);
+    setTimeout(connectToWebSocket, 500);
   } 
 
 };

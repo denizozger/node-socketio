@@ -14,9 +14,6 @@ const express = require('express'),
  * Server setup
  */
 io.configure('production', function(){
-  io.enable('browser client minification'); // send minified client
-  io.enable('browser client etag'); // apply etag caching logic based on version number
-  io.enable('browser client gzip'); // gzip the file
   io.set('log level', 1); // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 
   io.set('transports', [
@@ -33,6 +30,12 @@ io.configure('development', function(){
   io.set('transports', ['websocket']);
   io.set('log level', 2); // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 });
+
+io.enable('browser client minification'); // send minified client
+io.enable('browser client etag'); // apply etag caching logic based on version number
+io.enable('browser client gzip'); // gzip the file
+// io.set('heartbeat timeout', 180); // default: 60
+// io.set('heartbeat interval', 60); // default: 25
 
 app.use(express.static(__dirname + '/'));
 app.use(express.json());
@@ -155,7 +158,7 @@ function isValidConnection(clientConnection) {
 });
 
 memwatch.on('stats', function(stats) {
-  logger.warn('Garbage Collection stats: ' + stats);
+  logger.warn(stats);
 });
 
 /**
