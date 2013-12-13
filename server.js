@@ -10,6 +10,11 @@ const express = require('express'),
   strongloop = require('strong-agent').profile(),
   memwatch = require('memwatch');
 
+require('nodetime').profile({
+  accountKey: '7724d01175fed4cb54a011b85769b7b58a15bf6d', 
+  appName: 'WSS1'
+});
+
 /**
  * Server setup
  */
@@ -81,15 +86,13 @@ function handleClientConnected(clientConnection) {
   }
 }
 
-// Publish resource data that we don't have in memory
+// Publish a resource request for a resrouce that we don't have in memory (ie. in resourceData)
 const resourceRequiredPublisher = zmq.socket('pub').bind('tcp://*:5432');
 // Receive new resource data
 const resourceUpdatedSubscriber = zmq.socket('sub').connect('tcp://localhost:5433');
 resourceUpdatedSubscriber.subscribe('');
 
 resourceUpdatedSubscriber.on('message', function (data) {
-  heapDiffBegin = new memwatch.HeapDiff();
-
   handleResourceDataReceived(data);
 });
 
@@ -128,16 +131,15 @@ function storeResourceData(resource) {
 function notifyObservers(resourceId) {
   var data = resourceData[resourceId];
 
-  if ((io.rooms[''] ? io.rooms[''].length : 0) === 130) {
+  if (getTotalObserverCount() === 130) {
     hd = new memwatch.HeapDiff();
   }
 
   io.sockets.in(resourceId).emit('data', data);
 
-  if ((io.rooms[''] ? io.rooms[''].length : 0) === 130) {
+  if (getTotalObserverCount() === 130) {
     diff = hd.end(); 
     console.log(JSON.stringify(diff, null, 2));
-    process.exit();
   }
 }
 
@@ -163,7 +165,7 @@ function isValidConnection(clientConnection) {
   logger.error('Memory Leak detected:');
   logger.error(JSON.stringify(info, null, 2));
 
-  process.exit();
+  // process.exit();
 });
 
 memwatch.on('stats', function(stats) {
@@ -176,9 +178,13 @@ memwatch.on('stats', function(stats) {
 
 function logNewObserver(clientConnection, resourceId) {
   logger.info('New connection for ' + resourceId + '. This resource\'s observers: ' + 
-    io.sockets.clients(resourceId).length + ', Total observers : ' + (io.rooms[''] ? io.rooms[''].length : 0));
+    io.sockets.clients(resourceId).length + ', Total observers : ' + getTotalObserverCount());
   logger.debug('This client is present in these rooms: ' + 
     JSON.stringify(io.sockets.manager.roomClients[clientConnection.id], null, 4));
+}
+
+function getTotalObserverCount() {
+  return io.rooms[''] ? io.rooms[''].length : 0;
 }
 
 function logAllResources() {
