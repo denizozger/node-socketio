@@ -10,11 +10,6 @@ const express = require('express'),
   strongloop = require('strong-agent').profile(),
   memwatch = require('memwatch');
 
-require('nodetime').profile({
-  accountKey: '7724d01175fed4cb54a011b85769b7b58a15bf6d', 
-  appName: 'WSS1'
-});
-
 /**
  * Server setup
  */
