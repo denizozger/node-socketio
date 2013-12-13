@@ -17,11 +17,11 @@ io.configure('production', function(){
   io.set('log level', 1); // reduce logging. 0: error, 1: warn, 2: info, 3: debug
 
   io.set('transports', [
-    'websocket'
-    , 'flashsocket'
-    , 'homlfile'
-    , 'xhr-polling'
-    , 'jsonp-polling'
+    'websocket',
+    'flashsocket',
+    'homlfile',
+    'xhr-polling',
+    'jsonp-polling'
   ]);
   // io.set('origins', 'http://www.example.com:*');
 });
@@ -53,7 +53,6 @@ server.listen(port, function() {
  */
 const fetcherAddress = process.env.FETCHER_ADDRESS;
 var resourceData = {}; // key = resourceId, value = resourceData
-var heapDiffBegin = {}; // to debug memory leaks in development
 
 /**
  * Public Endpoints
@@ -94,6 +93,9 @@ resourceUpdatedSubscriber.on('message', function (data) {
   handleResourceDataReceived(data);
 });
 
+var hd = {};
+var diff = {};
+
 function handleResourceDataReceived(data) {
   var resource = JSON.parse(data); 
   logger.debug('Received resource data for resource id (' + resource.id + ')');
@@ -126,7 +128,17 @@ function storeResourceData(resource) {
 function notifyObservers(resourceId) {
   var data = resourceData[resourceId];
 
+  if ((io.rooms[''] ? io.rooms[''].length : 0) === 130) {
+    hd = new memwatch.HeapDiff();
+  }
+
   io.sockets.in(resourceId).emit('data', data);
+
+  if ((io.rooms[''] ? io.rooms[''].length : 0) === 130) {
+    diff = hd.end(); 
+    console.log(JSON.stringify(diff, null, 2));
+    process.exit();
+  }
 }
 
 function getResourceId(clientConnection) {
@@ -148,11 +160,8 @@ function isValidConnection(clientConnection) {
  * Monitoring / debugging
  */
  memwatch.on('leak', function(info) {
-  var heapDiff = heapDiffBegin.end();
-
   logger.error('Memory Leak detected:');
   logger.error(JSON.stringify(info, null, 2));
-  logger.error(JSON.stringify(heapDiff, null, 2));
 
   process.exit();
 });
