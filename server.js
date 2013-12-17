@@ -10,6 +10,11 @@ const express = require('express'),
   strongloop = require('strong-agent').profile(),
   memwatch = require('memwatch');
 
+require('nodetime').profile({
+  accountKey: '7724d01175fed4cb54a011b85769b7b58a15bf6d', 
+  appName: 'WSS1'
+});
+
 /**
  * Server setup
  */
@@ -72,7 +77,8 @@ function handleClientConnected(clientConnection) {
   clientConnection.join(resourceId);
   logNewObserver(clientConnection, resourceId);
 
-  var existingResourceData = resourceData.resourceId;
+  var existingResourceData = resourceData[resourceId];
+  
 
   if (existingResourceData) {
     sendResourceDataToObserver(clientConnection, resourceId);
@@ -82,10 +88,10 @@ function handleClientConnected(clientConnection) {
 }
 
 // Publish a resource request for a resrouce that we don't have in memory (ie. in resourceData)
-const resourceRequiredPublisher = zmq.socket('pub').bind('tcp://*:5432');
+const resourceRequiredPublisher = zmq.socket('push').bind('tcp://*:5432');
 // Receive new resource data
-const resourceUpdatedSubscriber = zmq.socket('sub').connect('tcp://localhost:5433');
-resourceUpdatedSubscriber.subscribe('');
+const resourceUpdatedSubscriber = zmq.socket('pull').connect('tcp://localhost:5433');
+// resourceUpdatedSubscriber.subscribe('');
 
 resourceUpdatedSubscriber.on('message', function (data) {
   handleResourceDataReceived(data);
@@ -125,6 +131,8 @@ function storeResourceData(resource) {
 
 function notifyObservers(resourceId) {
   var data = resourceData[resourceId];
+
+
 
   if (getTotalObserverCount() === 130) {
     hd = new memwatch.HeapDiff();
@@ -202,4 +210,3 @@ process.on('SIGINT', function() {
   closeAllSockets();
   process.exit();
 });
-

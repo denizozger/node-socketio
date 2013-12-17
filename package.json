@@ -13,7 +13,8 @@
     "underscore": "1.5.x",
     "request": "2.27.x",
     "zmq": "~2.5.1",
-    "strong-agent": "~0.2.19"
+    "strong-agent": "~0.2.19",
+    "engine.io-client": "~0.7.12"
   },
   "engines": {
     "node": "0.10.x",
@@ -23,4 +24,3 @@
     "start": "node --harmony server.js"
   }
 }
-

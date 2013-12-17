@@ -5,56 +5,56 @@ var log = require('npmlog');
 log.level = 'verbose';
 
 var sockets = [];
-var maxSockets = 130;
+var maxSockets = 150;
 var connectionAttempts = 0;
 
 function connectToWebSocket() {
-	connectionAttempts++;
+  connectionAttempts++;
 
-	// var socket = io.connect('http://localhost:5000/?resourceId=matchesfeed/' + Math.floor((Math.random()*5)+1) + '/matchcentre', {transports : ['websocket'], 'force new connection':true});
-	var socket = io.connect('http://localhost:5000/?resourceId=matchesfeed/1/matchcentre', 
-		{
-			transports : ['websocket'], 
-			'force new connection' :true
-		});
+  // var socket = io.connect('http://localhost:5000/?resourceId=matchesfeed/' + Math.floor((Math.random()*5)+1) + '/matchcentre', {transports : ['websocket'], 'force new connection':true});
+  var socket = io.connect('http://localhost:5000/?resourceId=matchesfeed/1/matchcentre', 
+    {
+      transports : ['websocket'], 
+      'force new connection' :true
+    });
 
-	// console.log(JSON.stringify(this.socket, censor(this.socket), 4));
+  // console.log(JSON.stringify(this.socket, censor(this.socket), 4));
 
-	socket.on('connecting', function () {
-  	log.verbose('Connecting ' + this.socket.sessionid);
+  socket.on('connecting', function () {
+    log.verbose('Connecting ' + this.socket.sessionid);
   });
 
-	socket.on('connect', function () {
-  	log.info('Connected ' + this.socket.sessionid); 
+  socket.on('connect', function () {
+    log.info('Connected ' + this.socket.sessionid); 
 
-  	socket.on('disconnect'), function() {
-  		log.warn('Disconnected ' + this.socket.sessionid);	
-  	}
-  });		
+    socket.on('disconnect'), function() {
+      log.warn('Disconnected ' + this.socket.sessionid);  
+    }
+  });   
 
-	socket.on('connect_failed', function () {
-  	log.warn('Connect failed ' + this.socket.sessionid);
+  socket.on('connect_failed', function () {
+    log.warn('Connect failed ' + this.socket.sessionid);
   });
 
   socket.on('error', function (error) {
-  	log.error('Error:' + error + ' id:' + this.socket.sessionid);
+    log.error('Error:' + error + ' id:' + this.socket.sessionid);
   });
 
   socket.on('reconnect_failed', function () {
-  	log.warn('Reconnect failed ' + this.socket.sessionid);
+    log.warn('Reconnect failed ' + this.socket.sessionid);
   });
 
   socket.on('reconnect', function () {
-  	log.info('Reconnected ' + this.socket.sessionid);
+    log.info('Reconnected ' + this.socket.sessionid);
   });
 
   socket.on('reconnecting', function () {
-  	log.verbose('Reconnecting ' + this.socket.sessionid);
+    log.verbose('Reconnecting ' + this.socket.sessionid);
   });
 
   sockets.push(socket);
 
-	if (connectionAttempts < maxSockets) {
+  if (connectionAttempts < maxSockets) {
     setTimeout(connectToWebSocket, 500);
   } 
 

@@ -17,9 +17,9 @@
       }
     </style>
 
-	<script src="/socket.io/socket.io.js"></script>
-	<script>
-	  var resourceId = location.search.substring(1);
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var resourceId = location.search.substring(1);
     var locationStr = location + '';
 
     var host = 'http://node-socketio.herokuapp.com/';
@@ -28,19 +28,19 @@
       host = 'http://localhost:5000/';
     }
 
-	  var socket = io.connect(host + '?resourceId=' + resourceId);
+    var socket = io.connect(host + '?resourceId=' + resourceId);
 
-	  socket.on('data', function (data) {
-	    var li = document.createElement('li');
+    socket.on('data', function (data) {
+      var li = document.createElement('li');
       li.innerHTML = JSON.stringify(data);
       document.querySelector('#events').appendChild(li);
-	  });
-	</script>
+    });
+  </script>
 
-	</head>
+  </head>
 
-	<body>
-	  <h1>Node Websocket Server</h1>
-	  <ul id='events'></ul>
-	</body>
+  <body>
+    <h1>Node Websocket Server</h1>
+    <ul id='events'></ul>
+  </body>
 </html>
