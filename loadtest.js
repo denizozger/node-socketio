@@ -5,7 +5,7 @@ var log = require('npmlog');
 log.level = 'verbose';
 
 var sockets = [];
-var maxSockets = 150;
+var maxSockets = 140; // max is below 130
 var connectionAttempts = 0;
 
 function connectToWebSocket() {

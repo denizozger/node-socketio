@@ -22,5 +22,13 @@
   },
   "scripts": {
     "start": "node --harmony server.js"
+  },
+  "strongloop": {
+    "id": "c1ece425b4ed39c316acd2e2a916cb37",
+    "name": "Deniz Ozger",
+    "userKey": "c1ece425b4ed39c316acd2e2a916cb37",
+    "email": "deniz@parallelbrains.com",
+    "created": "2013-12-11T17:00:04.000Z",
+    "sid": "1r6GJ4k1Mwh_owEuC1uHFZ0f"
   }
 }

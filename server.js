@@ -6,14 +6,9 @@ const express = require('express'),
   io = require('socket.io').listen(server),
   request = require('request'),
   logger = io.log,
-  zmq = require('zmq'),
-  strongloop = require('strong-agent').profile(),
-  memwatch = require('memwatch');
-
-require('nodetime').profile({
-  accountKey: '7724d01175fed4cb54a011b85769b7b58a15bf6d', 
-  appName: 'WSS1'
-});
+  zmq = require('zmq');
+  // strongloop = require('strong-agent').profile();
+  // memwatch = require('memwatch');
 
 /**
  * Server setup
@@ -97,9 +92,6 @@ resourceUpdatedSubscriber.on('message', function (data) {
   handleResourceDataReceived(data);
 });
 
-var hd = {};
-var diff = {};
-
 function handleResourceDataReceived(data) {
   var resource = JSON.parse(data); 
   logger.debug('Received resource data for resource id (' + resource.id + ')');
@@ -132,18 +124,7 @@ function storeResourceData(resource) {
 function notifyObservers(resourceId) {
   var data = resourceData[resourceId];
 
-
-
-  if (getTotalObserverCount() === 130) {
-    hd = new memwatch.HeapDiff();
-  }
-
   io.sockets.in(resourceId).emit('data', data);
-
-  if (getTotalObserverCount() === 130) {
-    diff = hd.end(); 
-    console.log(JSON.stringify(diff, null, 2));
-  }
 }
 
 function getResourceId(clientConnection) {
@@ -164,16 +145,16 @@ function isValidConnection(clientConnection) {
 /**
  * Monitoring / debugging
  */
- memwatch.on('leak', function(info) {
-  logger.error('Memory Leak detected:');
-  logger.error(JSON.stringify(info, null, 2));
+//  memwatch.on('leak', function(info) {
+//   logger.error('Memory Leak detected:');
+//   logger.error(JSON.stringify(info, null, 2));
 
-  // process.exit();
-});
+//   // process.exit();
+// });
 
-memwatch.on('stats', function(stats) {
-  logger.warn(stats);
-});
+// memwatch.on('stats', function(stats) {
+//   logger.warn(stats);
+// });
 
 /**
  * Logging
