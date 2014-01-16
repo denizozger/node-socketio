@@ -51,7 +51,6 @@ server.listen(port, function() {
 /**
  * Infrastructure and security settings
  */
-const fetcherAddress = process.env.FETCHER_ADDRESS;
 var resourceData = {}; // key = resourceId, value = resourceData
 
 /**
